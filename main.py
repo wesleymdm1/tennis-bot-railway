@@ -1,40 +1,58 @@
-import time
-from data_fetcher import buscar_partidas_ao_vivo, buscar_partidas_pre_jogo
-from rules import avaliar_ao_vivo, avaliar_pre_jogo
-from alerts import enviar_alerta_ao_vivo, enviar_alerta_pre_jogo
+import logging
+from typing import Dict, Optional
 
-def executar_bot():
-    print("🚀 Iniciando análise de partidas com dados reais...")
-    while True:
-        try:
-            print("\n🔎 Analisando PRÉ-JOGO:")
-            pre_jogo = buscar_partidas_pre_jogo()
-            if not pre_jogo:
-                print("Nenhuma partida pré-jogo encontrada.")
-            for partida in pre_jogo:
-                print(f"➡️ {partida['jogador1']} vs {partida['jogador2']} - 1º Saque: {partida['primeiro_saque']}%, BP: {partida['bp_convertidos']}%, TMAP: {partida['diferenca_tmap']}")
-                if avaliar_pre_jogo(partida):
-                    print("✅ Enviando alerta pré-jogo")
-                    enviar_alerta_pre_jogo(partida)
-                else:
-                    print("❌ Não atende os critérios pré-jogo")
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-            print("\n🎾 Analisando AO VIVO:")
-            ao_vivo = buscar_partidas_ao_vivo()
-            if not ao_vivo:
-                print("Nenhuma partida ao vivo encontrada.")
-            for partida in ao_vivo:
-                print(f"➡️ {partida['jogador1']} vs {partida['jogador2']} - Placar: {partida['pontuacao']}, 1º Saque: {partida['primeiro_saque']}%, TMAP: {partida['diferenca_tmap']}")
-                if avaliar_ao_vivo(partida):
-                    print("✅ Enviando alerta ao vivo")
-                    enviar_alerta_ao_vivo(partida)
-                else:
-                    print("❌ Não atende os critérios ao vivo")
+from config import TELEGRAM_TOKEN
+from data_fetcher import buscar_stats_jogador
 
-        except Exception as e:
-            print("Erro:", e)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
 
-        time.sleep(90)
+
+def formatar_stats(nome: str, stats: Optional[Dict[str, Dict[str, int]]]) -> str:
+    if not stats:
+        return f"{nome}: dados indisponíveis."
+
+    linhas = [f"{nome}"]
+    for superficie, info in stats.items():
+        wins = info.get("wins", "?")
+        losses = info.get("losses", "?")
+        linhas.append(f"  • {superficie.title()}: {wins}-{losses}")
+    return "\n".join(linhas)
+
+
+async def partida_handler(update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text.strip()
+    linhas = texto.splitlines()
+    if len(linhas) != 4:
+        await update.message.reply_text(
+            "Formato inválido. Envie:\nDATA\nHORA\nJOGADOR1\nJOGADOR2"
+        )
+        return
+
+    data, hora, jogador1, jogador2 = linhas
+    stats1 = buscar_stats_jogador(jogador1)
+    stats2 = buscar_stats_jogador(jogador2)
+
+    mensagem = (
+        f"📅 {data} ⏰ {hora}\n\n"
+        f"{formatar_stats(jogador1, stats1)}\n\n"
+        f"{formatar_stats(jogador2, stats2)}"
+    )
+    await update.message.reply_text(mensagem)
+
+
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, partida_handler))
+    logger.info("Bot iniciado. Aguardando mensagens...")
+    app.run_polling()
+
 
 if __name__ == "__main__":
-    executar_bot()
+    main()
+
