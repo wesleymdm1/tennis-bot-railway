@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TPI-Core Advanced · Multi-Match Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --bg-elevated: #16140f;
+    --bg-card: #1b1813;
+    --ink: #f2ebe0;
+    --ink-muted: #a39a8a;
+    --ink-dim: #6b6458;
+    --line: #2a2620;
+    --line-strong: #3d372e;
+    --accent: #d4a574;
+    --accent-dim: #8c7251;
+    --clay: #c45a32;
+    --grass: #5a8456;
+    --hard: #3d6fa0;
+    --carpet: #8a5a8f;
+    --danger: #c76862;
+    --ok: #7a9b6e;
+    --success: #5aae5a;
+    --font-display: 'Instrument Serif', Georgia, serif;
+    --font-body: 'Instrument Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212,165,116,0.08), transparent 70%),
+      radial-gradient(ellipse 40% 30% at 10% 100%, rgba(196,90,50,0.04), transparent 70%);
+    background-attachment: fixed;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  header.site {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 48px;
+  }
+  .brand { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.18em; color: var(--ink-muted); text-transform: uppercase; }
+  .brand .dot { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin-right: 10px; transform: translateY(-1px); }
+
+  .hero h1 { font-family: var(--font-display); font-weight: 400; font-size: 48px; margin-bottom: 8px; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 32px; gap: 32px; }
+  .tab { background: transparent; border: none; border-bottom: 2px solid transparent; padding: 14px 0; font-family: var(--font-display); font-size: 18px; color: var(--ink-dim); cursor: pointer; transition: all 200ms; }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .section-title { font-family: var(--font-display); font-size: 24px; font-weight: 400; margin: 32px 0 24px; }
+
+  .upload-area { border: 2px dashed var(--accent); border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; background: var(--bg-elevated); transition: all 200ms; }
+  .upload-area:hover, .upload-area.dragover { border-color: var(--success); background: var(--bg-card); }
+
+  .form-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .form-field label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
+  .form-field input, .form-field select, .form-field textarea { background: var(--bg-card); border: 1px solid var(--line); color: var(--ink); font-family: var(--font-body); font-size: 14px; padding: 10px 12px; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: none; border-color: var(--accent); }
+
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 200ms; border: 1px solid var(--accent); }
+  button.primary:hover { background: transparent; color: var(--accent); }
+
+  .match-card { background: var(--bg-elevated); border: 2px solid var(--accent); padding: 24px; margin-bottom: 24px; border-radius: 4px; }
+  .match-header { display: grid; grid-template-columns: 1fr auto 1fr; gap: 32px; align-items: center; margin-bottom: 24px; }
+  .match-player { text-align: center; }
+  .match-player-name { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+  .match-probability { font-size: 42px; font-weight: 700; color: var(--accent); }
+  .match-center { text-align: center; font-size: 12px; color: var(--accent); }
+
+  .match-details { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; font-size: 13px; }
+  .detail-item { background: var(--bg-card); padding: 8px; }
+
+  .matches-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 16px 0; }
+  .match-item { background: var(--bg-card); padding: 12px; border-left: 3px solid var(--accent); cursor: pointer; transition: all 200ms; }
+  .match-item:hover { background: var(--bg-elevated); }
+  .match-item.selected { border-left-color: var(--success); background: var(--bg-elevated); }
+  .match-item-title { font-weight: 600; margin-bottom: 4px; }
+  .match-item-desc { font-size: 12px; color: var(--ink-muted); }
+
+  .hide { display: none; }
+
+  .csv-instructions { background: var(--bg-card); border-left: 3px solid var(--accent); padding: 12px; margin: 16px 0; font-size: 13px; }
+
+  #fileMulti { display: none; }
+
+  .download-btn {
+    display: block; width: 100%; margin-top: 16px;
+    background: transparent; border: 1px solid var(--line-strong);
+    color: var(--ink-muted); font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px; cursor: pointer; transition: all 200ms;
+  }
+  .download-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .download-btn:disabled { opacity: 0.4; cursor: wait; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="site">
+    <div class="brand"><span class="dot"></span>TPI-Core Advanced</div>
+    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim);">v2.3 · Multi-Match Analysis</div>
+  </header>
+
+  <div class="hero">
+    <h1>TPI <em>Advanced</em></h1>
+    <p style="color: var(--ink-muted); font-size: 16px;">Analise múltiplas partidas simultâneas com CSV automático</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="multi">📊 Múltiplas Partidas</button>
+    <button class="tab" data-tab="single">⚡ Uma Partida</button>
+  </div>
+
+  <!-- TAB 1: MÚLTIPLAS PARTIDAS -->
+  <div id="tabMulti" class="tab-content active">
+    <div class="section-title">Análise de Múltiplas Partidas</div>
+    <p style="color: var(--ink-muted); margin-bottom: 24px;">Importe um CSV com várias partidas (múltiplos pares de jogadores) e analise todas de uma vez.</p>
+
+    <div class="csv-instructions">
+      <strong>📋 Formato esperado:</strong><br>
+      <code style="display: block; margin-top: 8px; font-size: 11px;">
+        match_id,player_a,player_b,surface,tournament,date,1stIn_a,1stWon_a,2ndWon_a,BPS_a,RPW_a,BPC_a,Aces_a,DF_a,1stIn_b,1stWon_b,2ndWon_b,BPS_b,RPW_b,BPC_b,Aces_b,DF_b
+      </code>
+      Ou simplesmente: <strong>match_id,jogador_a,jogador_b,superfície,torneio,data,8stats_a,8stats_b</strong>
+    </div>
+
+    <div class="upload-area" id="uploadMulti" onclick="document.getElementById('fileMulti').click();">
+      <div style="font-size: 32px; margin-bottom: 12px;">📁</div>
+      <div style="color: var(--ink-muted); margin-bottom: 8px;"><strong>Clique ou arraste arquivo CSV</strong></div>
+      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim);">Suporta múltiplas partidas em um único arquivo</div>
+      <input type="file" id="fileMulti" accept=".csv" />
+    </div>
+
+    <div id="multiContent" class="hide" style="margin-top: 32px;">
+      <div class="section-title">Partidas detectadas</div>
+      <div id="matchesList" class="matches-list"></div>
+      <button class="primary" onclick="analyzeMultiple()" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 16px;">Analisar todas</button>
+    </div>
+
+    <div id="multiResults" class="hide" style="margin-top: 32px;">
+      <div class="section-title">Resultados da Análise</div>
+      <div id="resultsContainer"></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: UMA PARTIDA -->
+  <div id="tabSingle" class="tab-content">
+    <div class="section-title">Uma Partida Rápida</div>
+    <p style="color: var(--ink-muted); margin-bottom: 24px;">Cole dados de 1 partida (2 jogadores)</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+      <div>
+        <h3>Jogador A</h3>
+        <div class="form-field">
+          <label>Nome</label>
+          <input type="text" id="singleA_name" placeholder="Ex: Sinner">
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+          <div class="form-field">
+            <label>1stIn</label>
+            <input type="number" id="singleA_1stIn" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>1stWon</label>
+            <input type="number" id="singleA_1stWon" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>2ndWon</label>
+            <input type="number" id="singleA_2ndWon" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>BPS</label>
+            <input type="number" id="singleA_BPS" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>RPW</label>
+            <input type="number" id="singleA_RPW" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>BPC</label>
+            <input type="number" id="singleA_BPC" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>Aces/G</label>
+            <input type="number" id="singleA_aces" min="0" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>DF/G</label>
+            <input type="number" id="singleA_df" min="0" step="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Jogador B</h3>
+        <div class="form-field">
+          <label>Nome</label>
+          <input type="text" id="singleB_name" placeholder="Ex: Alcaraz">
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+          <div class="form-field">
+            <label>1stIn</label>
+            <input type="number" id="singleB_1stIn" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>1stWon</label>
+            <input type="number" id="singleB_1stWon" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>2ndWon</label>
+            <input type="number" id="singleB_2ndWon" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>BPS</label>
+            <input type="number" id="singleB_BPS" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>RPW</label>
+            <input type="number" id="singleB_RPW" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>BPC</label>
+            <input type="number" id="singleB_BPC" min="0" max="1" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>Aces/G</label>
+            <input type="number" id="singleB_aces" min="0" step="0.01">
+          </div>
+          <div class="form-field">
+            <label>DF/G</label>
+            <input type="number" id="singleB_df" min="0" step="0.01">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="primary" onclick="analyzeSingle()" style="margin-top: 24px; padding: 12px 24px; font-size: 16px;">Analisar</button>
+
+    <div id="singleResult" class="hide" style="margin-top: 32px;"></div>
+  </div>
+</div>
+
+<script>
+
+const CIRCUIT = {
+  Clay:   { SS: { mean: 0.6180, stdev: 0.0450 }, RS: { mean: 0.3880, stdev: 0.0400 }, SC: { mean: 0.3800, stdev: 0.2400 }, '1stIn': { mean: 0.6200, stdev: 0.0400 } },
+  Hard:   { SS: { mean: 0.6480, stdev: 0.0480 }, RS: { mean: 0.3680, stdev: 0.0370 }, SC: { mean: 0.5500, stdev: 0.2900 }, '1stIn': { mean: 0.6250, stdev: 0.0420 } },
+  Grass:  { SS: { mean: 0.6800, stdev: 0.0450 }, RS: { mean: 0.3420, stdev: 0.0340 }, SC: { mean: 0.7000, stdev: 0.3200 }, '1stIn': { mean: 0.6350, stdev: 0.0450 } },
+  Carpet: { SS: { mean: 0.6600, stdev: 0.0480 }, RS: { mean: 0.3550, stdev: 0.0370 }, SC: { mean: 0.6000, stdev: 0.3000 }, '1stIn': { mean: 0.6300, stdev: 0.0420 } }
+};
+
+let multipleMatches = [];
+
+// ============ UTILITY FUNCTIONS ============
+function sigmoideProba(delta) { return 1 / (1 + Math.exp(-2 * delta)); }
+
+function normalizeSurface(s) {
+  if (!s) return 'Clay';
+  const key = s.trim().charAt(0).toUpperCase() + s.trim().slice(1).toLowerCase();
+  return CIRCUIT[key] ? key : 'Clay';
+}
+
+function calculateTPI(stats, circuit) {
+  const SS = 0.40 * stats['1stWon'] + 0.40 * stats['2ndWon'] + 0.20 * stats['BPS'];
+  const RS = 0.70 * stats['RPW'] + 0.30 * stats['BPC'];
+  const SC = stats['AcesPerGame'] - stats['DFPerGame'];
+
+  const z_SS    = (SS              - circuit.SS.mean)    / circuit.SS.stdev;
+  const z_RS    = (RS              - circuit.RS.mean)    / circuit.RS.stdev;
+  const z_SC    = (SC              - circuit.SC.mean)    / circuit.SC.stdev;
+  const z_1stIn = (stats['1stIn'] - circuit['1stIn'].mean) / circuit['1stIn'].stdev;
+
+  return 0.35 * z_SS + 0.30 * z_RS + 0.20 * z_SC + 0.15 * z_1stIn;
+}
+
+// ============ DOWNLOAD PNG ============
+function downloadPNG(btn) {
+  const card = btn.closest('.match-card');
+  const playerA = card.querySelector('.match-player-name')?.textContent?.trim() || 'analise';
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando...';
+
+  html2canvas(card, {
+    backgroundColor: '#16140f',
+    scale: 2,
+    useCORS: true,
+    ignoreElements: el => el === btn
+  }).then(canvas => {
+    btn.disabled = false;
+    btn.textContent = '⬇ Baixar PNG';
+    const link = document.createElement('a');
+    link.download = `TPI-${playerA.replace(/\s+/g, '-')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(() => {
+    btn.disabled = false;
+    btn.textContent = '⬇ Baixar PNG';
+  });
+}
+
+function generateMatchCard(match) {
+  const circuit = CIRCUIT[normalizeSurface(match.surface)];
+
+  const statsA = {
+    '1stIn': match.player_a['1stIn'], '1stWon': match.player_a['1stWon'],
+    '2ndWon': match.player_a['2ndWon'], 'BPS': match.player_a['BPS'],
+    'RPW': match.player_a['RPW'], 'BPC': match.player_a['BPC'],
+    'AcesPerGame': match.player_a['AcesPerGame'], 'DFPerGame': match.player_a['DFPerGame']
+  };
+  const statsB = {
+    '1stIn': match.player_b['1stIn'], '1stWon': match.player_b['1stWon'],
+    '2ndWon': match.player_b['2ndWon'], 'BPS': match.player_b['BPS'],
+    'RPW': match.player_b['RPW'], 'BPC': match.player_b['BPC'],
+    'AcesPerGame': match.player_b['AcesPerGame'], 'DFPerGame': match.player_b['DFPerGame']
+  };
+
+  const tpiA = calculateTPI(statsA, circuit);
+  const tpiB = calculateTPI(statsB, circuit);
+  const delta = tpiA - tpiB;
+  const probA = sigmoideProba(delta);
+  const probB = 1 - probA;
+
+  let category = 'EQUILIBRADO';
+  if (delta > 1.0) category = 'DOMINANTE';
+  else if (delta > 0.5) category = 'CLARO';
+  else if (delta > 0.2) category = 'LEVE';
+
+  return `
+    <div class="match-card">
+      <div class="match-header">
+        <div class="match-player">
+          <div class="match-player-name">${match.player_a.name}</div>
+          <div class="match-probability">${(probA * 100).toFixed(1)}%</div>
+        </div>
+        <div class="match-center">
+          <div>${match.tournament || 'Torneio'}</div>
+          <div style="font-size: 10px; color: var(--ink-muted);">${match.surface}</div>
+          <div style="margin-top: 8px; padding: 6px; background: var(--bg); border-radius: 3px;">
+            ${category}
+          </div>
+        </div>
+        <div class="match-player">
+          <div class="match-player-name">${match.player_b.name}</div>
+          <div class="match-probability">${(probB * 100).toFixed(1)}%</div>
+        </div>
+      </div>
+
+      <div class="match-details">
+        <div>
+          <strong>${match.player_a.name}</strong><br>
+          1stIn: ${(match.player_a['1stIn'] * 100).toFixed(0)}% | 1stWon: ${(match.player_a['1stWon'] * 100).toFixed(0)}%<br>
+          Aces: ${match.player_a['AcesPerGame'].toFixed(2)} | DF: ${match.player_a['DFPerGame'].toFixed(2)}<br>
+          <span style="color: var(--accent);">TPI: ${tpiA.toFixed(3)}</span>
+        </div>
+        <div>
+          <strong>${match.player_b.name}</strong><br>
+          1stIn: ${(match.player_b['1stIn'] * 100).toFixed(0)}% | 1stWon: ${(match.player_b['1stWon'] * 100).toFixed(0)}%<br>
+          Aces: ${match.player_b['AcesPerGame'].toFixed(2)} | DF: ${match.player_b['DFPerGame'].toFixed(2)}<br>
+          <span style="color: var(--accent);">TPI: ${tpiB.toFixed(3)}</span>
+        </div>
+      </div>
+
+      <button class="download-btn" onclick="downloadPNG(this)">⬇ Baixar PNG</button>
+    </div>
+  `;
+}
+
+// ============ MULTI MATCH CSV IMPORT ============
+const uploadMulti = document.getElementById('uploadMulti');
+const fileMulti = document.getElementById('fileMulti');
+
+uploadMulti.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadMulti.classList.add('dragover');
+});
+uploadMulti.addEventListener('dragleave', () => uploadMulti.classList.remove('dragover'));
+uploadMulti.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadMulti.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) loadMultiCSV(e.dataTransfer.files[0]);
+});
+
+fileMulti.addEventListener('change', (e) => {
+  if (e.target.files[0]) loadMultiCSV(e.target.files[0]);
+});
+
+function loadMultiCSV(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => parseMultiCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseMultiCSV(content) {
+  const lines = content.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'));
+  if (lines.length < 2) { alert('CSV inválido'); return; }
+
+  multipleMatches = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(s => s.trim());
+    if (cols.length < 22) continue;
+
+    const match = {
+      match_id:   cols[0],
+      player_a:   { name: cols[1] },
+      player_b:   { name: cols[2] },
+      surface:    normalizeSurface(cols[3]),
+      tournament: cols[4] || 'Torneio',
+      date:       cols[5] || ''
+    };
+
+    match.player_a['1stIn']      = parseFloat(cols[6]);
+    match.player_a['1stWon']     = parseFloat(cols[7]);
+    match.player_a['2ndWon']     = parseFloat(cols[8]);
+    match.player_a['BPS']        = parseFloat(cols[9]);
+    match.player_a['RPW']        = parseFloat(cols[10]);
+    match.player_a['BPC']        = parseFloat(cols[11]);
+    match.player_a['AcesPerGame']= parseFloat(cols[12]);
+    match.player_a['DFPerGame']  = parseFloat(cols[13]);
+
+    match.player_b['1stIn']      = parseFloat(cols[14]);
+    match.player_b['1stWon']     = parseFloat(cols[15]);
+    match.player_b['2ndWon']     = parseFloat(cols[16]);
+    match.player_b['BPS']        = parseFloat(cols[17]);
+    match.player_b['RPW']        = parseFloat(cols[18]);
+    match.player_b['BPC']        = parseFloat(cols[19]);
+    match.player_b['AcesPerGame']= parseFloat(cols[20]);
+    match.player_b['DFPerGame']  = parseFloat(cols[21]);
+
+    multipleMatches.push(match);
+  }
+
+  if (multipleMatches.length === 0) { alert('Nenhuma partida encontrada'); return; }
+
+  document.getElementById('multiContent').classList.remove('hide');
+  const listHTML = multipleMatches.map((m, idx) => `
+    <div class="match-item" onclick="selectMatch(${idx})">
+      <div class="match-item-title">${m.player_a.name} vs ${m.player_b.name}</div>
+      <div class="match-item-desc">${m.tournament || 'Torneio'} • ${m.surface}</div>
+    </div>
+  `).join('');
+  document.getElementById('matchesList').innerHTML = listHTML;
+}
+
+function selectMatch(idx) {
+  document.querySelectorAll('.match-item').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
+}
+
+function analyzeMultiple() {
+  if (multipleMatches.length === 0) return;
+  const results = multipleMatches.map(m => generateMatchCard(m)).join('');
+  document.getElementById('multiResults').classList.remove('hide');
+  document.getElementById('resultsContainer').innerHTML = results;
+}
+
+// ============ SINGLE MATCH ============
+function analyzeSingle() {
+  const nameA = document.getElementById('singleA_name').value || 'Jogador A';
+  const nameB = document.getElementById('singleB_name').value || 'Jogador B';
+
+  const statsA = {
+    '1stIn':      parseFloat(document.getElementById('singleA_1stIn').value) || 0.65,
+    '1stWon':     parseFloat(document.getElementById('singleA_1stWon').value) || 0.75,
+    '2ndWon':     parseFloat(document.getElementById('singleA_2ndWon').value) || 0.55,
+    'BPS':        parseFloat(document.getElementById('singleA_BPS').value) || 0.65,
+    'RPW':        parseFloat(document.getElementById('singleA_RPW').value) || 0.40,
+    'BPC':        parseFloat(document.getElementById('singleA_BPC').value) || 0.40,
+    'AcesPerGame':parseFloat(document.getElementById('singleA_aces').value) || 0.50,
+    'DFPerGame':  parseFloat(document.getElementById('singleA_df').value) || 0.15
+  };
+
+  const statsB = {
+    '1stIn':      parseFloat(document.getElementById('singleB_1stIn').value) || 0.62,
+    '1stWon':     parseFloat(document.getElementById('singleB_1stWon').value) || 0.70,
+    '2ndWon':     parseFloat(document.getElementById('singleB_2ndWon').value) || 0.50,
+    'BPS':        parseFloat(document.getElementById('singleB_BPS').value) || 0.60,
+    'RPW':        parseFloat(document.getElementById('singleB_RPW').value) || 0.38,
+    'BPC':        parseFloat(document.getElementById('singleB_BPC').value) || 0.38,
+    'AcesPerGame':parseFloat(document.getElementById('singleB_aces').value) || 0.40,
+    'DFPerGame':  parseFloat(document.getElementById('singleB_df').value) || 0.20
+  };
+
+  const circuit = CIRCUIT.Clay;
+  const tpiA = calculateTPI(statsA, circuit);
+  const tpiB = calculateTPI(statsB, circuit);
+  const delta = tpiA - tpiB;
+  const probA = sigmoideProba(delta);
+  const probB = 1 - probA;
+
+  let category = 'EQUILIBRADO';
+  if (delta > 1.0) category = 'FAVORITO DOMINANTE';
+  else if (delta > 0.5) category = 'FAVORITO CLARO';
+  else if (delta > 0.2) category = 'LEVE FAVORITISMO';
+
+  const html = `
+    <div class="match-card">
+      <div class="match-header">
+        <div class="match-player">
+          <div class="match-player-name">${nameA}</div>
+          <div class="match-probability">${(probA * 100).toFixed(1)}%</div>
+        </div>
+        <div class="match-center">
+          <div style="margin-top: 8px; padding: 8px; background: var(--bg); border-radius: 3px;">
+            ${category}
+          </div>
+        </div>
+        <div class="match-player">
+          <div class="match-player-name">${nameB}</div>
+          <div class="match-probability">${(probB * 100).toFixed(1)}%</div>
+        </div>
+      </div>
+      <button class="download-btn" onclick="downloadPNG(this)">⬇ Baixar PNG</button>
+    </div>
+  `;
+
+  const result = document.getElementById('singleResult');
+  result.classList.remove('hide');
+  result.innerHTML = html;
+}
+
+// ============ TAB SWITCHING ============
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+    tab.classList.add('active');
+    const tabName = tab.dataset.tab;
+    document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+  });
+});
+
+</script>
+
+</body>
+</html>
